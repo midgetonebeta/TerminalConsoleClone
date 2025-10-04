@@ -6,6 +6,16 @@ Desktop.ini
 *.history
 *.bak
 
+#Screenshot Ignore
+*.png
+*.jpg
+!Screenshots/*.png
+!Screenshots/*.jpg
+
+
+# Font Zip Ignore
+Font/*.zip
+
 # Ignore VS Code settings (if any)
 .vscode/
 
