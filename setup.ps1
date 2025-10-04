@@ -1,135 +1,118 @@
-<# 
-    setup.ps1 - Automated PowerShell Terminal Environment Setup
-    Features:
-    - Auto elevate to Administrator
-    - Installs PowerShell 7 (if missing)
-    - Installs Chocolatey (if missing)
-    - Installs tools: git, neovim, python, nodejs, yarn, 7zip
-    - Installs PowerShell modules: Terminal-Icons, z
-    - Installs all fonts in Font/ (Cascadia + Arcade Interlaced, etc.)
-    - Copies profile & theme from Profile_Data/
-    - Copies Windows Terminal settings from TerminalSettings/
-    - Auto-updates terminal font face (Arcade Interlaced > CascadiaCove Nerd Font)
-    - Logs all actions to setup.log
+<#
+.SYNOPSIS
+ Automated PowerShell environment setup
+
+.DESCRIPTION
+ Installs PowerShell 7 (if missing), fonts, modules, Oh My Posh theme,
+ and Windows Terminal settings.
 #>
 
-# --- Logging ---
-$LogFile = Join-Path $PSScriptRoot "setup.log"
-function Write-Log {
-    param([string]$Message, [string]$Level = "INFO")
-    $timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-    $line = "[$timestamp] [$Level] $Message"
-    Write-Host $line
-    Add-Content -Path $LogFile -Value $line
-}
-
-# --- Auto-Elevate ---
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-    Write-Log "Restarting script as Administrator..."
-    Start-Process pwsh "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+# Ensure script is run as admin (auto-elevate)
+if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
+{
+    Write-Host "Restarting script as administrator..."
+    Start-Process pwsh "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     exit
 }
 
-Set-ExecutionPolicy Bypass -Scope Process -Force
-
-Write-Log "=== Starting Environment Setup ==="
-
-# --- Install PowerShell 7 (if missing) ---
+# -----------------------------
+# 1. Install PowerShell 7 if missing
+# -----------------------------
 if ($PSVersionTable.PSVersion.Major -lt 7) {
-    Write-Log "Installing PowerShell 7..."
+    Write-Host "Installing PowerShell 7..."
     winget install --id Microsoft.Powershell --source winget -e
-} else {
-    Write-Log "PowerShell 7 is already installed."
 }
 
-# --- Install Chocolatey (if missing) ---
-if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-    Write-Log "Installing Chocolatey..."
-    Set-ExecutionPolicy Bypass -Scope Process -Force
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-    Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-} else {
-    Write-Log "Chocolatey already installed."
-}
+# -----------------------------
+# 2. Install Fonts
+# -----------------------------
+$fontSource = Join-Path $PSScriptRoot "Font"
+$fonts = @(
+    "CaskaydiaCoveNerdFont-Bold.ttf",
+    "CaskaydiaCoveNerdFont-BoldItalic.ttf",
+    "CaskaydiaCoveNerdFont-ExtraLight.ttf",
+    "CaskaydiaCoveNerdFont-ExtraLightItalic.ttf",
+    "CaskaydiaCoveNerdFont-Italic.ttf",
+    "CaskaydiaCoveNerdFont-Light.ttf",
+    "CaskaydiaCoveNerdFont-LightItalic.ttf",
+    "CaskaydiaCoveNerdFont-Regular.ttf",
+    "CaskaydiaCoveNerdFont-SemiBold.ttf",
+    "CaskaydiaCoveNerdFont-SemiBoldItalic.ttf",
+    "CaskaydiaCoveNerdFont-SemiLight.ttf",
+    "CaskaydiaCoveNerdFont-SemiLightItalic.ttf",
+    "CaskaydiaCoveNerdFontMono-Bold.ttf",
+    "CaskaydiaCoveNerdFontMono-BoldItalic.ttf",
+    "CaskaydiaCoveNerdFontMono-ExtraLight.ttf",
+    "CaskaydiaCoveNerdFontMono-ExtraLightItalic.ttf",
+    "CaskaydiaCoveNerdFontMono-Italic.ttf",
+    "CaskaydiaCoveNerdFontMono-Light.ttf",
+    "CaskaydiaCoveNerdFontMono-LightItalic.ttf",
+    "CaskaydiaCoveNerdFontMono-Regular.ttf",
+    "CaskaydiaCoveNerdFontMono-SemiBold.ttf",
+    "CaskaydiaCoveNerdFontMono-SemiBoldItalic.ttf",
+    "CaskaydiaCoveNerdFontMono-SemiLight.ttf",
+    "CaskaydiaCoveNerdFontMono-SemiLightItalic.ttf",
+    "CaskaydiaCoveNerdFontPropo-Bold.ttf",
+    "CaskaydiaCoveNerdFontPropo-BoldItalic.ttf",
+    "CaskaydiaCoveNerdFontPropo-ExtraLight.ttf",
+    "CaskaydiaCoveNerdFontPropo-ExtraLightItalic.ttf",
+    "CaskaydiaCoveNerdFontPropo-Italic.ttf",
+    "CaskaydiaCoveNerdFontPropo-Light.ttf",
+    "CaskaydiaCoveNerdFontPropo-LightItalic.ttf",
+    "CaskaydiaCoveNerdFontPropo-Regular.ttf",
+    "CaskaydiaCoveNerdFontPropo-SemiBold.ttf",
+    "CaskaydiaCoveNerdFontPropo-SemiBoldItalic.ttf",
+    "CaskaydiaCoveNerdFontPropo-SemiLight.ttf",
+    "CaskaydiaCoveNerdFontPropo-SemiLightItalic.ttf",
+    "ARCADE_I.TTF"   # <-- Added Arcade Interlaced font
+)
 
-# --- Core Tools via Choco ---
-$packages = @("git", "neovim", "python", "nodejs", "yarn", "7zip")
-foreach ($pkg in $packages) {
-    if (-not (choco list --localonly | Select-String $pkg)) {
-        Write-Log "Installing $pkg..."
-        choco install $pkg -y
+Write-Host "Installing Fonts..."
+foreach ($font in $fonts) {
+    $fontPath = Join-Path $fontSource $font
+    if (Test-Path $fontPath) {
+        Write-Host "Installing $font..."
+        Copy-Item $fontPath -Destination "C:\Windows\Fonts" -Force
+        $regPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
+        $fontName = [System.IO.Path]::GetFileNameWithoutExtension($font)
+        New-ItemProperty -Path $regPath -Name $fontName -Value $font -PropertyType String -Force | Out-Null
     } else {
-        Write-Log "$pkg already installed."
+        Write-Warning "Font not found: $font"
     }
 }
 
-# --- PowerShell Modules ---
-$modules = @("Terminal-Icons", "z")
-foreach ($module in $modules) {
+# -----------------------------
+# 3. Copy PowerShell Profile + Theme
+# -----------------------------
+$profileDest = Split-Path -Parent $PROFILE
+if (-not (Test-Path $profileDest)) { New-Item -ItemType Directory -Path $profileDest -Force }
+
+Copy-Item -Force (Join-Path $PSScriptRoot "Profile_Data\Microsoft.PowerShell_profile.ps1") $PROFILE
+Copy-Item -Force (Join-Path $PSScriptRoot "Profile_Data\midgetsrampage.omp.json") "$profileDest\midgetsrampage.omp.json"
+
+# -----------------------------
+# 4. Copy Terminal Settings
+# -----------------------------
+$terminalSettingsSrc = Join-Path $PSScriptRoot "TerminalSettings\settings.json"
+$terminalSettingsDest = "$env:LocalAppData\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
+
+if (Test-Path $terminalSettingsSrc) {
+    Copy-Item -Force $terminalSettingsSrc $terminalSettingsDest
+    Write-Host "Windows Terminal settings applied."
+}
+
+# -----------------------------
+# 5. Install PowerShell Modules
+# -----------------------------
+$modules = @("Terminal-Icons","z")
+foreach ($moduleName in $modules) {
     try {
-        if (-not (Get-Module -ListAvailable -Name $module)) {
-            Write-Log "Installing module $module..."
-            Install-Module -Name $module -Scope CurrentUser -Force -ErrorAction Stop
-        } else {
-            Write-Log "Module $module already installed."
+        if (-not (Get-Module -ListAvailable -Name $moduleName)) {
+            Install-Module -Name $moduleName -Scope CurrentUser -Force -AllowClobber
         }
     } catch {
-        Write-Log "Failed to install module $module: $($_.Exception.Message)" "WARN"
+        Write-Warning "Failed to install $moduleName : $($_.Exception.Message)"
     }
 }
 
-# --- Install Fonts ---
-$FontSource = Join-Path $PSScriptRoot "Font"
-$FontDest = "C:\Windows\Fonts"
-$installedFonts = @()
-
-if (Test-Path $FontSource) {
-    Write-Log "Installing fonts from $FontSource ..."
-    foreach ($fontFile in Get-ChildItem $FontSource -Filter *.ttf) {
-        $fontName = $fontFile.Name
-        $target = Join-Path $FontDest $fontFile.Name
-        if (-not (Test-Path $target)) {
-            Write-Log "Installing font: $fontName"
-            Copy-Item $fontFile.FullName $FontDest
-            $installedFonts += $fontFile.BaseName
-        } else {
-            Write-Log "Font already installed: $fontName"
-        }
-    }
-} else {
-    Write-Log "Font folder not found, skipping fonts." "WARN"
-}
-
-# --- Copy PowerShell Profile & Theme ---
-$profileSource = Join-Path $PSScriptRoot "Profile_Data"
-if (Test-Path $profileSource) {
-    Copy-Item "$profileSource\Microsoft.PowerShell_profile.ps1" $PROFILE -Force
-    Copy-Item "$profileSource\midgetsrampage.omp.json" (Split-Path $PROFILE) -Force
-    Write-Log "Profile and theme copied."
-} else {
-    Write-Log "Profile_Data folder not found." "WARN"
-}
-
-# --- Copy Windows Terminal Settings ---
-$termSource = Join-Path $PSScriptRoot "TerminalSettings\settings.json"
-$termDest = "$env:LocalAppData\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
-
-if (Test-Path $termSource) {
-    $settings = Get-Content $termSource -Raw
-
-    # Choose Arcade Interlaced if available, else Cascadia
-    if ($installedFonts -match "Arcade Interlaced") {
-        $settings = $settings -replace '"fontFace":\s*".*?"', '"fontFace": "Arcade Interlaced"'
-        Write-Log "Set terminal font to Arcade Interlaced."
-    } else {
-        $settings = $settings -replace '"fontFace":\s*".*?"', '"fontFace": "CaskaydiaCove Nerd Font"'
-        Write-Log "Set terminal font to CaskaydiaCove Nerd Font."
-    }
-
-    $settings | Set-Content $termDest -Encoding UTF8
-    Write-Log "Terminal settings copied and updated."
-} else {
-    Write-Log "TerminalSettings folder not found." "WARN"
-}
-
-Write-Log "=== Setup Complete! Restart terminal to see changes. ==="
+Write-Host "`nSetup complete! Restart your terminal to apply changes." -ForegroundColor Green
