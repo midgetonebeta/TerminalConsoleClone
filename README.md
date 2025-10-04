@@ -2,10 +2,12 @@
 
 ![PowerShell](https://img.shields.io/badge/PowerShell-7%2B-blue?logo=powershell)
 ![Windows](https://img.shields.io/badge/Windows-10%2F11-lightgrey?logo=windows)
-[![Release](https://img.shields.io/github/v/release/midgetonebeta/TerminalConsoleClone?color=green&logo=github)](https://github.com/midgetonebeta/TerminalConsoleClone/releases/latest)
-[![License](https://img.shields.io/github/license/midgetonebeta/TerminalConsoleClone)](LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/midgetonebeta/TerminalConsoleClone/total?logo=github)](https://github.com/midgetonebeta/TerminalConsoleClone/releases)
-[![Stars](https://img.shields.io/github/stars/midgetonebeta/TerminalConsoleClone?style=social)](https://github.com/midgetonebeta/TerminalConsoleClone/stargazers)
+![Release](https://img.shields.io/github/v/release/midgetonebeta/TerminalConsoleClone?color=green&logo=github)
+![License](https://img.shields.io/github/license/midgetonebeta/TerminalConsoleClone)
+![Downloads](https://img.shields.io/github/downloads/midgetonebeta/TerminalConsoleClone/total?logo=github)
+![Repo Size](https://img.shields.io/github/repo-size/midgetonebeta/TerminalConsoleClone?logo=github)
+[![Contributors](https://img.shields.io/github/contributors/midgetonebeta/TerminalConsoleClone)](https://github.com/midgetonebeta/TerminalConsoleClone/graphs/contributors)
+[![GitHub stars](https://img.shields.io/github/stars/midgetonebeta/TerminalConsoleClone?style=social)](https://github.com/midgetonebeta/TerminalConsoleClone/stargazers)
 
 Terminal config and install that’s cloned as Perseh from my main setup.
 
