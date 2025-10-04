@@ -1,31 +1,24 @@
-# Windows crap
+# Ignore Windows junk
 Thumbs.db
-ehthumbs.db
 Desktop.ini
 
-# VS Code settings
+# Ignore PowerShell history
+*.history
+*.bak
+
+# Ignore VS Code settings (if any)
 .vscode/
 
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# PowerShell history
-*.History*
-
-# Logs
+# Ignore logs
 *.log
 
-# Archives
-*.zip
-*.7z
-*.tar
-*.gz
-*.rar
+# Ignore temporary files
+~*
+
+# Ignore node/npm cache
+node_modules/
+npm-debug.log*
+
+# Ignore Python cache
+__pycache__/
+*.pyc
