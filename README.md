@@ -3,31 +3,25 @@
 ![PowerShell](https://img.shields.io/badge/PowerShell-7%2B-blue?logo=powershell)
 ![Windows](https://img.shields.io/badge/Windows-10%2F11-lightgrey?logo=windows)
 [![Release](https://img.shields.io/github/v/release/midgetonebeta/TerminalConsoleClone?logo=github)](https://github.com/midgetonebeta/TerminalConsoleClone/releases/latest)
-[![License](https://img.shields.io/github/license/midgetonebeta/TerminalConsoleClone)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/midgetonebeta/TerminalConsoleClone/total?logo=github)](https://github.com/midgetonebeta/TerminalConsoleClone/releases)
+[![License](https://img.shields.io/github/license/midgetonebeta/TerminalConsoleClone)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/midgetonebeta/TerminalConsoleClone?style=social)](https://github.com/midgetonebeta/TerminalConsoleClone/stargazers)
 
 Terminal config and install that’s cloned as Perseh from my main setup.
 
----
+## Troubleshooting
 
-## ⚠ Troubleshooting
-
-- You need to run the `setup.ps1` file as **Administrator**.
+- You need to Run the Setup.ps1 File as Admin.
 - Requirements: Windows 10/11, Git installed.
-- If fonts fail to install, run PowerShell again as Administrator.
+- Run PowerShell as Administrator if fonts fail.
 
----
-
-## ✨ Features
+## Features
 
 - Custom PowerShell profile with aliases and functions
 - Oh My Posh theme (`midgetsrampage.omp.json`)
 - Auto-install PowerShell 7, fonts, and terminal settings
 - Fonts: CascadiaCode Nerd Font
 - Easy setup with `setup.ps1`
-
----
 
 ## 📸 Screenshots
 
