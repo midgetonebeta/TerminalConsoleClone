@@ -1,19 +1,20 @@
 # TerminalConsoleClone
 
-![PowerShell](https://img.shields.io/badge/PowerShell-7+-blue.svg)
-![Windows](https://img.shields.io/badge/Windows-10%2F11-lightgrey.svg)
-![GitHub release](https://img.shields.io/github/v/release/midgetonebeta/TerminalConsoleClone)
+![PowerShell](https://img.shields.io/badge/PowerShell-7%2B-blue?logo=powershell)
+![Windows](https://img.shields.io/badge/Windows-10%2F11-lightgrey?logo=windows)
+![Release](https://img.shields.io/github/v/release/midgetonebeta/TerminalConsoleClone?color=green&logo=github)
 ![License](https://img.shields.io/github/license/midgetonebeta/TerminalConsoleClone)
+![Downloads](https://img.shields.io/github/downloads/midgetonebeta/TerminalConsoleClone/total?logo=github)
 
 Terminal config and install that’s cloned as Perseh from my main setup.
 
 ---
 
-## ⚠️ Troubleshooting
+## ⚠ Troubleshooting
 
-- Run the `setup.ps1` file as **Administrator**
-- Requirements: Windows 10/11, Git installed
-- If fonts fail to install, re-run PowerShell as **Administrator**
+- Run the `setup.ps1` file **as Administrator**.
+- Requirements: Windows 10/11 and Git installed.
+- If fonts fail to install, re-run PowerShell as Administrator.
 
 ---
 
