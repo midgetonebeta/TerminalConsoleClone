@@ -1,150 +1,103 @@
-# ============================================================
-# setup.ps1 - Automated Environment Setup
-# ============================================================
+<# 
+    setup.ps1 - Automated PowerShell Terminal Environment Setup
+    Features:
+    - Auto elevate to Administrator
+    - Installs PowerShell 7 (if missing)
+    - Installs Chocolatey (if missing)
+    - Installs tools: git, neovim, python, nodejs, yarn, 7zip
+    - Installs PowerShell modules: Terminal-Icons, z
+    - Installs all fonts in Font/ (Cascadia + Arcade Interlaced, etc.)
+    - Copies profile & theme from Profile_Data/
+    - Copies Windows Terminal settings from TerminalSettings/
+    - Logs installed fonts
+#>
 
-# Ensure script runs even if system ExecutionPolicy blocks unsigned scripts
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-
-Write-Host "=== Starting Terminal Console Clone Setup ===" -ForegroundColor Cyan
-
-# ------------------------------------------------------------
-# Helper Functions
-# ------------------------------------------------------------
-
-function Write-Info($msg) {
-    Write-Host "[INFO] $msg" -ForegroundColor Cyan
+# --- AUTO-ELEVATE ---
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Host "Restarting as Administrator..."
+    Start-Process pwsh "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    exit
 }
 
-function Write-Success($msg) {
-    Write-Host "[SUCCESS] $msg" -ForegroundColor Green
+Set-ExecutionPolicy Bypass -Scope Process -Force
+
+Write-Host "`n=== Starting Environment Setup ===`n"
+
+# --- Install PowerShell 7 (if missing) ---
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    Write-Host "Installing PowerShell 7..."
+    winget install --id Microsoft.Powershell --source winget -e
 }
 
-function Write-Warn($msg) {
-    Write-Host "[WARNING] $msg" -ForegroundColor Yellow
-}
-
-function Write-ErrorMsg($msg) {
-    Write-Host "[ERROR] $msg" -ForegroundColor Red
-}
-
-# ------------------------------------------------------------
-# Install PowerShell Module if Missing
-# ------------------------------------------------------------
-
-function Install-PowerShellModuleIfMissing($moduleName) {
-    if (-not (Get-Module -ListAvailable -Name $moduleName)) {
-        try {
-            Write-Info "Installing PowerShell module: $moduleName..."
-            Install-Module -Name $moduleName -Scope CurrentUser -Force -AllowClobber
-            Write-Success "$moduleName installed successfully."
-        } catch {
-            Write-Warn "Failed to install ${moduleName}: $_"
-        }
-    } else {
-        Write-Info "Module $moduleName already installed."
-    }
-}
-
-# ------------------------------------------------------------
-# Step 1: Install Chocolatey (if missing)
-# ------------------------------------------------------------
-
+# --- Install Chocolatey (if missing) ---
 if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-    Write-Info "Installing Chocolatey..."
+    Write-Host "Installing Chocolatey..."
     Set-ExecutionPolicy Bypass -Scope Process -Force
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
     Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-    Write-Success "Chocolatey installed."
-} else {
-    Write-Info "Chocolatey already installed."
 }
 
-# ------------------------------------------------------------
-# Step 2: Install Core Tools
-# ------------------------------------------------------------
-
-$packages = @("git", "neovim", "nodejs", "yarn", "7zip")
+# --- Core Tools via Choco ---
+$packages = @("git", "neovim", "python", "nodejs", "yarn", "7zip")
 foreach ($pkg in $packages) {
-    if (-not (choco list --local-only | Select-String $pkg)) {
-        Write-Info "Installing $pkg..."
+    if (-not (choco list --localonly | Select-String $pkg)) {
         choco install $pkg -y
-        Write-Success "$pkg installed."
     } else {
-        Write-Info "$pkg already installed."
+        Write-Host "$pkg already installed."
     }
 }
 
-# ------------------------------------------------------------
-# Step 3: Install Oh My Posh
-# ------------------------------------------------------------
-
-if (-not (Get-Command oh-my-posh -ErrorAction SilentlyContinue)) {
-    Write-Info "Installing Oh My Posh..."
-    winget install JanDeDobbeleer.OhMyPosh -s winget --accept-source-agreements --accept-package-agreements
-    Write-Success "Oh My Posh installed."
-} else {
-    Write-Info "Oh My Posh already installed."
-}
-
-# ------------------------------------------------------------
-# Step 4: Install Fonts
-# ------------------------------------------------------------
-
-$fontFolder = Join-Path $PSScriptRoot "Font"
-$fonts = Get-ChildItem $fontFolder -Filter *.ttf
-
-foreach ($font in $fonts) {
-    $fontDest = Join-Path "$env:WINDIR\Fonts" $font.Name
-    if (-not (Test-Path $fontDest)) {
-        Write-Info "Installing font: $($font.Name)"
-        Copy-Item $font.FullName $fontDest
-        # Register font in registry
-        $regPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
-        New-ItemProperty -Path $regPath -Name $font.BaseName -Value $font.Name -PropertyType String -Force | Out-Null
-        Write-Success "Font $($font.Name) installed."
-    } else {
-        Write-Info "Font $($font.Name) already installed."
+# --- PowerShell Modules ---
+$modules = @("Terminal-Icons", "z")
+foreach ($module in $modules) {
+    try {
+        if (-not (Get-Module -ListAvailable -Name $module)) {
+            Write-Host "Installing module $module..."
+            Install-Module -Name $module -Scope CurrentUser -Force -ErrorAction Stop
+        } else {
+            Write-Host "Module $module already installed."
+        }
+    } catch {
+        Write-Warning "Failed to install module $module: $($_.Exception.Message)"
     }
 }
 
-# ------------------------------------------------------------
-# Step 5: Copy PowerShell Profile + Theme
-# ------------------------------------------------------------
+# --- Install Fonts ---
+$FontSource = Join-Path $PSScriptRoot "Font"
+$FontDest = "C:\Windows\Fonts"
 
-$profileDir = Split-Path -Parent $PROFILE
-if (-not (Test-Path $profileDir)) {
-    New-Item -ItemType Directory -Path $profileDir | Out-Null
-}
-
-Copy-Item -Force (Join-Path $PSScriptRoot "Profile_Data\Microsoft.PowerShell_profile.ps1") $PROFILE
-Copy-Item -Force (Join-Path $PSScriptRoot "Profile_Data\midgetsrampage.omp.json") (Join-Path $profileDir "midgetsrampage.omp.json")
-
-Write-Success "PowerShell profile and theme installed."
-
-# ------------------------------------------------------------
-# Step 6: Install PowerShell Modules
-# ------------------------------------------------------------
-
-Install-PowerShellModuleIfMissing -moduleName "Terminal-Icons"
-Install-PowerShellModuleIfMissing -moduleName "z"
-
-# ------------------------------------------------------------
-# Step 7: Apply Terminal Settings
-# ------------------------------------------------------------
-
-$terminalSettingsSource = Join-Path $PSScriptRoot "TerminalSettings\settings.json"
-$terminalSettingsDest = "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
-
-if (Test-Path $terminalSettingsSource) {
-    Write-Info "Applying Windows Terminal settings..."
-    Copy-Item -Force $terminalSettingsSource $terminalSettingsDest
-    Write-Success "Windows Terminal settings applied."
+if (Test-Path $FontSource) {
+    Write-Host "`nInstalling fonts from $FontSource ..."
+    $shell = New-Object -ComObject Shell.Application
+    foreach ($fontFile in Get-ChildItem $FontSource -Filter *.ttf) {
+        $fontName = $fontFile.Name
+        $target = Join-Path $FontDest $fontFile.Name
+        if (-not (Test-Path $target)) {
+            Write-Host "Installing font: $fontName"
+            Copy-Item $fontFile.FullName $FontDest
+        } else {
+            Write-Host "Font already installed: $fontName"
+        }
+    }
 } else {
-    Write-Warn "No TerminalSettings found to apply."
+    Write-Warning "Font folder not found, skipping fonts."
 }
 
-# ------------------------------------------------------------
-# Finish
-# ------------------------------------------------------------
+# --- Copy PowerShell Profile & Theme ---
+$profileSource = Join-Path $PSScriptRoot "Profile_Data"
+if (Test-Path $profileSource) {
+    Copy-Item "$profileSource\Microsoft.PowerShell_profile.ps1" $PROFILE -Force
+    Copy-Item "$profileSource\midgetsrampage.omp.json" (Split-Path $PROFILE) -Force
+    Write-Host "Profile and theme copied."
+}
 
-Write-Host "`n=== Setup Completed! Restart PowerShell or Windows Terminal. ===" -ForegroundColor Green
+# --- Copy Windows Terminal Settings ---
+$termSource = Join-Path $PSScriptRoot "TerminalSettings\settings.json"
+$termDest = "$env:LocalAppData\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
+
+if (Test-Path $termSource) {
+    Copy-Item $termSource $termDest -Force
+    Write-Host "Terminal settings copied."
+}
+
+Write-Host "`n=== Setup Complete! Restart terminal to see changes. ===`n"
