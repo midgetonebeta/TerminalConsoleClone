@@ -1,123 +1,110 @@
-# Ensure script runs as Admin with Bypass ExecutionPolicy
-if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-    Write-Output "Restarting with Administrator rights..."
-    Start-Process pwsh "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
-    exit
-}
+# ============================
+# TerminalConsoleClone Setup
+# ============================
 
-# Set ExecutionPolicy to Bypass for this process
+# Force execution policy bypass so unsigned scripts can run
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 
-Write-Output "=== TerminalConsoleClone Setup Starting ==="
+Write-Host "=== TerminalConsoleClone Setup ===" -ForegroundColor Cyan
 
-# -------------------------------
-# 1. Install Chocolatey if missing
-# -------------------------------
-if (-not (Get-Command choco.exe -ErrorAction SilentlyContinue)) {
-    Write-Output "Installing Chocolatey..."
-    Set-ExecutionPolicy Bypass -Scope Process -Force
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-    Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-} else {
-    Write-Output "Chocolatey already installed."
+# Detect user Documents path (works with or without OneDrive)
+$documentsPath = [Environment]::GetFolderPath("MyDocuments")
+$psProfileDir  = Join-Path $documentsPath "PowerShell"
+
+if (-not (Test-Path $psProfileDir)) {
+    New-Item -ItemType Directory -Path $psProfileDir -Force | Out-Null
 }
 
-# -------------------------------
-# 2. Install core tools
-# -------------------------------
-$packages = @("git", "neovim", "python", "nodejs", "yarn", "7zip", "oh-my-posh")
-
-foreach ($pkg in $packages) {
-    if (-not (choco list --local-only | Select-String $pkg)) {
-        Write-Output "Installing ${pkg}..."
-        choco install $pkg -y
-    } else {
-        Write-Output "${pkg} already installed."
-    }
-}
-
-# -------------------------------
-# 3. Install PowerShell Modules
-# -------------------------------
-$modules = @("Terminal-Icons", "z")
-
-foreach ($moduleName in $modules) {
-    try {
-        if (-not (Get-Module -ListAvailable -Name $moduleName)) {
-            Write-Output "Installing PowerShell module: ${moduleName}"
-            Install-Module -Name $moduleName -Scope CurrentUser -Force -ErrorAction Stop
-        } else {
-            Write-Output "Module ${moduleName} already installed."
-        }
-    }
-    catch {
-        Write-Warning "Failed to install ${moduleName}: $($_.Exception.Message)"
-    }
-}
-
-# -------------------------------
-# 4. Install Fonts
-# -------------------------------
-$fontPath = Join-Path $PSScriptRoot "Font"
-$fonts = Get-ChildItem $fontPath -Filter *.ttf
-
-foreach ($font in $fonts) {
-    $dest = "$env:WINDIR\Fonts\$($font.Name)"
-    if (-not (Test-Path $dest)) {
-        Write-Output "Installing font: $($font.Name)"
-        Copy-Item $font.FullName -Destination $env:WINDIR\Fonts -Force
-        New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts" `
-            -Name $font.BaseName -Value $font.Name -PropertyType String -Force | Out-Null
-    } else {
-        Write-Output "Font already installed: $($font.Name)"
-    }
-}
-
-# -------------------------------
-# 5. Copy Profile and Theme
-# -------------------------------
+# ----------------------------
+# Copy profile + theme
+# ----------------------------
 $profileSource = Join-Path $PSScriptRoot "Profile_Data\Microsoft.PowerShell_profile.ps1"
-$profileDest = $PROFILE
-$themeSource = Join-Path $PSScriptRoot "Profile_Data\midgetsrampage.omp.json"
-$themeDestDir = Split-Path $PROFILE
-$themeDest = Join-Path $themeDestDir "midgetsrampage.omp.json"
+$profileDest   = Join-Path $psProfileDir "Microsoft.PowerShell_profile.ps1.bak"   # we save as .bak first
+$themeSource   = Join-Path $PSScriptRoot "Profile_Data\midgetsrampage.omp.json"
+$themeDest     = Join-Path $psProfileDir "midgetsrampage.omp.json"
 
-# Backup old profile if it exists
-if (Test-Path $profileDest) {
-    Write-Output "Backing up existing profile..."
-    Rename-Item $profileDest "${profileDest}.bak" -Force
-}
+Copy-Item $profileSource $profileDest -Force
+Copy-Item $themeSource   $themeDest   -Force
 
-# Copy theme
-Copy-Item $themeSource -Destination $themeDest -Force
-
-# Copy profile template and rewrite user paths
+# ----------------------------
+# Fix paths inside profile
+# ----------------------------
 $profileContent = Get-Content $profileSource -Raw
 
-# Insert correct OneDrive/Documents path for theme
-$profileContent = $profileContent -replace 'C:\\Users\\[^\\]+\\(OneDrive\\)?Documents\\PowerShell\\midgetsrampage.omp.json', `
-    [Regex]::Escape($themeDest)
+# Insert correct theme path
+$profileContent = $profileContent -replace 'C:\\Users\\[^\\]+\\(OneDrive\\)?Documents\\PowerShell\\midgetsrampage.omp.json',
+    $themeDest
 
-# Insert correct wt.exe path (if found)
+# Find Windows Terminal path
 $wtPath = Get-Command wt.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue
 if ($wtPath) {
-    $profileContent = $profileContent -replace 'C:\\Users\\[^\\]+\\AppData\\Local\\Microsoft\\WindowsApps(\\[^\\]+)?\\wt.exe', `
-        [Regex]::Escape($wtPath)
+    $profileContent = $profileContent -replace 'C:\\Users\\[^\\]+\\AppData\\Local\\Microsoft\\WindowsApps(\\[^\\]+)?\\wt.exe',
+        $wtPath
 }
 
 # Write new profile
-Set-Content -Path $profileDest -Value $profileContent -Force -Encoding UTF8
+$profileFinal = Join-Path $psProfileDir "Microsoft.PowerShell_profile.ps1"
+$profileContent | Set-Content -Path $profileFinal -Encoding UTF8
 
-Write-Output "Profile and theme installed."
+Write-Host "✔ PowerShell profile installed to $profileFinal" -ForegroundColor Green
 
-# -------------------------------
-# 6. Copy Terminal Settings
-# -------------------------------
-$terminalSource = Join-Path $PSScriptRoot "TerminalSettings\settings.json"
-$terminalDestDir = Join-Path $env:LOCALAPPDATA "Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState"
-if (Test-Path $terminalSource) {
-    Copy-Item $terminalSource -Destination (Join-Path $terminalDestDir "settings.json") -Force
-    Write-Output "Terminal settings copied."
+# ----------------------------
+# Copy config.json (optional)
+# ----------------------------
+$configSource = Join-Path $PSScriptRoot "Profile_Data\powershell.config.json"
+$configDest   = Join-Path $psProfileDir "powershell.config.json"
+Copy-Item $configSource $configDest -Force
+
+# ----------------------------
+# Fonts install
+# ----------------------------
+$fontDir = Join-Path $PSScriptRoot "Font"
+$windowsFontDir = "$env:WINDIR\Fonts"
+
+Write-Host "Installing fonts..." -ForegroundColor Cyan
+Get-ChildItem -Path $fontDir -Filter *.ttf | ForEach-Object {
+    $target = Join-Path $windowsFontDir $_.Name
+    if (-not (Test-Path $target)) {
+        Copy-Item $_.FullName $target
+        Write-Host "✔ Installed font: $($_.Name)" -ForegroundColor Green
+    }
+    else {
+        Write-Host "Skipped font (already installed): $($_.Name)" -ForegroundColor Yellow
+    }
 }
 
-Write-Output "=== Setup Completed Successfully ==="
+# ----------------------------
+# Terminal settings
+# ----------------------------
+$terminalSettingsDir = Join-Path $env:LOCALAPPDATA "Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState"
+$settingsSource = Join-Path $PSScriptRoot "TerminalSettings\settings.json"
+$settingsDest   = Join-Path $terminalSettingsDir "settings.json"
+
+if (Test-Path $terminalSettingsDir) {
+    Copy-Item $settingsSource $settingsDest -Force
+    Write-Host "✔ Windows Terminal settings applied." -ForegroundColor Green
+}
+else {
+    Write-Warning "Windows Terminal not found. Skipping terminal settings."
+}
+
+# ----------------------------
+# Install modules
+# ----------------------------
+$modules = @("Terminal-Icons", "z")
+foreach ($moduleName in $modules) {
+    try {
+        if (-not (Get-Module -ListAvailable -Name $moduleName)) {
+            Install-Module -Name $moduleName -Scope CurrentUser -Force -AllowClobber
+            Write-Host "✔ Installed module: $moduleName" -ForegroundColor Green
+        }
+        else {
+            Write-Host "Skipped module (already installed): $moduleName" -ForegroundColor Yellow
+        }
+    }
+    catch {
+        Write-Warning ("Failed to install module {0}: {1}" -f $moduleName, $_.Exception.Message)
+    }
+}
+
+Write-Host "`n=== Setup Complete! Restart PowerShell to apply changes. ===" -ForegroundColor Cyan
