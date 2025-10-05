@@ -62,7 +62,7 @@ Terminal config and install that’s cloned as Perseh from my main setup.
 Clone this repository and run the setup:
 
 ```powershell
-git clone https://github.com/midgetonebeta/TerminalConsoleClone.git
+git clone https:/github.com/midgetonebeta/TerminalConsoleClone.git
 cd TerminalConsoleClone
 .\setup.ps1
 ```
