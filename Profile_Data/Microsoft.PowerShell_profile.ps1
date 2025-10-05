@@ -17,6 +17,11 @@ function HS_A {
     Set-Location "E:\HyperSpin Attraction"
 }
 
+# Jump to HyperSpin Attraction folder
+function TCC {
+    Set-Location "E:\TerminalConsoleClone"
+}
+
 
 # Clear screen
 Set-Alias cls Clear-Host
@@ -72,9 +77,6 @@ function la { Get-ChildItem -Force }
 
 # Clear screen
 Set-Alias cls Clear-Host
-
-# Open Windows Terminal
-Set-Alias wt "C:\Users\MotherBrain V\AppData\Local\Microsoft\WindowsApps\Microsoft.WindowsTerminal_1.23.12681.0_x64__8wekyb3d8bbwe\wt.exe"
 
 # Shortcut to nvim
 Set-Alias vim nvim
